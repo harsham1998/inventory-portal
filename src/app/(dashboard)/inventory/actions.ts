@@ -3,37 +3,92 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
-export async function addInventoryItem(formData: FormData): Promise<void> {
-  const name = String(formData.get("name") ?? "").trim();
-  const unit = String(formData.get("unit") ?? "").trim();
-  const category = String(formData.get("category") ?? "").trim();
-  const reorderLevel = Number(formData.get("reorder_level") ?? 0);
+export type ActionResult = { error: string } | undefined;
+
+export type InventoryItemInput = {
+  name: string;
+  unit: string;
+  category: string;
+  reorderLevel: number;
+};
+
+export async function addInventoryItem(input: InventoryItemInput): Promise<ActionResult> {
+  const name = input.name.trim();
+  const unit = input.unit.trim();
 
   if (!name || !unit) {
-    throw new Error("Name and unit are required.");
+    return { error: "Name and unit are required." };
   }
 
   const supabase = await createClient();
   const { error } = await supabase.from("inventory_items").insert({
     name,
     unit,
-    category: category || null,
-    reorder_level: Number.isFinite(reorderLevel) ? reorderLevel : 0,
+    category: input.category.trim() || null,
+    reorder_level: Number.isFinite(input.reorderLevel) ? input.reorderLevel : 0,
   });
 
   if (error) {
-    throw new Error(error.message);
+    if (error.code === "23505") {
+      return { error: `"${name}" already exists in inventory.` };
+    }
+    return { error: error.message };
   }
 
   revalidatePath("/inventory");
 }
 
-export async function adjustStock(formData: FormData): Promise<void> {
-  const itemId = Number(formData.get("item_id"));
-  const delta = Number(formData.get("delta"));
+export async function updateInventoryItem(
+  itemId: number,
+  input: InventoryItemInput,
+): Promise<ActionResult> {
+  const name = input.name.trim();
+  const unit = input.unit.trim();
 
+  if (!name || !unit) {
+    return { error: "Name and unit are required." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("inventory_items")
+    .update({
+      name,
+      unit,
+      category: input.category.trim() || null,
+      reorder_level: Number.isFinite(input.reorderLevel) ? input.reorderLevel : 0,
+    })
+    .eq("id", itemId);
+
+  if (error) {
+    if (error.code === "23505") {
+      return { error: `"${name}" already exists in inventory.` };
+    }
+    return { error: error.message };
+  }
+
+  revalidatePath("/inventory");
+}
+
+export async function deleteInventoryItem(itemId: number): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("inventory_items").delete().eq("id", itemId);
+
+  if (error) {
+    if (error.code === "23503") {
+      return {
+        error: "Can't delete — this item is used in a purchase order, invoice, or stock adjustment.",
+      };
+    }
+    return { error: error.message };
+  }
+
+  revalidatePath("/inventory");
+}
+
+export async function adjustStock(itemId: number, delta: number): Promise<ActionResult> {
   if (!itemId || !Number.isFinite(delta) || delta === 0) {
-    throw new Error("Enter a non-zero quantity.");
+    return { error: "Enter a non-zero quantity." };
   }
 
   const supabase = await createClient();
@@ -49,7 +104,7 @@ export async function adjustStock(formData: FormData): Promise<void> {
   });
 
   if (error) {
-    throw new Error(error.message);
+    return { error: error.message };
   }
 
   revalidatePath("/inventory");
