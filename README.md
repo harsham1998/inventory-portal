@@ -1,36 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# StockFlow
 
-## Getting Started
+Stock inventory & purchase order portal. Next.js (App Router) + Supabase (Postgres, Auth, Storage).
 
-First, run the development server:
+## First-time setup
+
+1. **Create a Supabase project** at supabase.com (or use an existing one).
+2. **Link and push the schema:**
+   ```bash
+   supabase login
+   supabase link --project-ref <your-project-ref>
+   supabase db push
+   ```
+   This creates all tables, RLS policies, triggers, and the two storage buckets from
+   `supabase/migrations/0001_init.sql`.
+3. **Env vars** — copy `.env.local.example` to `.env.local` and fill in your project's
+   URL and anon key (Supabase dashboard → Settings → API).
+4. **Regenerate types** (optional, keeps `src/lib/supabase/types.ts` in sync with the DB):
+   ```bash
+   supabase gen types typescript --linked > src/lib/supabase/types.ts
+   ```
+5. **Run it:**
+   ```bash
+   npm run dev
+   ```
+   First visit `/login`, create an account, then finish onboarding (pick your outlet).
+   The first outlet/supplier need to be added under Outlets / Suppliers before you can
+   raise a purchase order.
+
+## How stock updates
+
+`inventory_items.current_stock` is a cache maintained by triggers over an append-only
+`stock_movements` ledger — every purchase order line item and every manual adjustment
+writes a row there, and a trigger rolls it into the cached balance. See
+`supabase/migrations/0001_init.sql` for the full schema and RLS policies.
+
+## Tests
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run test
 ```
+Covers the paste-to-items parser (`src/lib/parser.ts`) used on the "New purchase order" page.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Deploy
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Push to a GitHub repo and import into Vercel, then set the two `NEXT_PUBLIC_SUPABASE_*`
+env vars in the Vercel project settings.
