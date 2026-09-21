@@ -1,224 +1,631 @@
-// Hand-written to match supabase/migrations/0001_init.sql.
-// Once the project is linked, regenerate with:
-//   supabase gen types typescript --linked > src/lib/supabase/types.ts
+// Generated via `supabase gen types typescript --linked`, then hand-patched
+// to add `| null` to a few nullable RPC args the generator can't infer
+// (search "nullable plpgsql arg" below). Redo that patch after regenerating.
+
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
-      outlets: {
-        Row: {
-          id: number;
-          name: string;
-          address: string | null;
-          gstin: string | null;
-          phone: string | null;
-          email: string | null;
-          created_at: string;
-        };
-        Insert: Partial<Database["public"]["Tables"]["outlets"]["Row"]> & { name: string };
-        Update: Partial<Database["public"]["Tables"]["outlets"]["Row"]>;
-        Relationships: [];
-      };
-      suppliers: {
-        Row: {
-          id: number;
-          name: string;
-          gstin: string | null;
-          address: string | null;
-          phone: string | null;
-          email: string | null;
-          bank_name: string | null;
-          bank_account_holder: string | null;
-          bank_account_number: string | null;
-          bank_ifsc: string | null;
-          bank_branch: string | null;
-          created_at: string;
-        };
-        Insert: Partial<Database["public"]["Tables"]["suppliers"]["Row"]> & { name: string };
-        Update: Partial<Database["public"]["Tables"]["suppliers"]["Row"]>;
-        Relationships: [];
-      };
-      staff: {
-        Row: {
-          id: string;
-          outlet_id: number | null;
-          full_name: string;
-          role: "admin" | "staff";
-          created_at: string;
-        };
-        Insert: Partial<Database["public"]["Tables"]["staff"]["Row"]> & {
-          id: string;
-          full_name: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["staff"]["Row"]>;
-        Relationships: [];
-      };
       inventory_items: {
         Row: {
-          id: number;
-          name: string;
-          unit: string;
-          category: string | null;
-          current_stock: number;
-          reorder_level: number;
-          created_at: string;
-        };
-        Insert: Partial<Database["public"]["Tables"]["inventory_items"]["Row"]> & {
-          name: string;
-          unit: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["inventory_items"]["Row"]>;
-        Relationships: [];
-      };
-      stock_movements: {
+          category: string | null
+          created_at: string
+          current_stock: number
+          id: number
+          name: string
+          reorder_level: number
+          unit: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          current_stock?: number
+          id?: never
+          name: string
+          reorder_level?: number
+          unit: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          current_stock?: number
+          id?: never
+          name?: string
+          reorder_level?: number
+          unit?: string
+        }
+        Relationships: []
+      }
+      outlets: {
         Row: {
-          id: number;
-          item_id: number;
-          quantity_delta: number;
-          reason: "po_created" | "manual_adjust" | "invoice_received";
-          reference_type: string | null;
-          reference_id: number | null;
-          created_by: string | null;
-          created_at: string;
-        };
-        Insert: Partial<Database["public"]["Tables"]["stock_movements"]["Row"]> & {
-          item_id: number;
-          quantity_delta: number;
-          reason: "po_created" | "manual_adjust" | "invoice_received";
-        };
-        Update: Partial<Database["public"]["Tables"]["stock_movements"]["Row"]>;
-        Relationships: [];
-      };
-      purchase_orders: {
-        Row: {
-          id: number;
-          po_number: string;
-          outlet_id: number;
-          supplier_id: number;
-          order_date: string;
-          status: "draft" | "sent";
-          notes: string | null;
-          created_by: string | null;
-          created_at: string;
-        };
-        Insert: Partial<Database["public"]["Tables"]["purchase_orders"]["Row"]> & {
-          outlet_id: number;
-          supplier_id: number;
-        };
-        Update: Partial<Database["public"]["Tables"]["purchase_orders"]["Row"]>;
-        Relationships: [];
-      };
+          address: string | null
+          created_at: string
+          email: string | null
+          gstin: string | null
+          id: number
+          name: string
+          phone: string | null
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          gstin?: string | null
+          id?: never
+          name: string
+          phone?: string | null
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          gstin?: string | null
+          id?: never
+          name?: string
+          phone?: string | null
+        }
+        Relationships: []
+      }
       purchase_order_items: {
         Row: {
-          id: number;
-          po_id: number;
-          item_id: number;
-          item_name: string;
-          quantity: number;
-          unit: string;
-        };
-        Insert: Partial<Database["public"]["Tables"]["purchase_order_items"]["Row"]> & {
-          po_id: number;
-          item_id: number;
-          item_name: string;
-          quantity: number;
-          unit: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["purchase_order_items"]["Row"]>;
-        Relationships: [];
-      };
-      supplier_invoices: {
+          id: number
+          item_id: number
+          item_name: string
+          po_id: number
+          quantity: number
+          unit: string
+        }
+        Insert: {
+          id?: never
+          item_id: number
+          item_name: string
+          po_id: number
+          quantity: number
+          unit: string
+        }
+        Update: {
+          id?: never
+          item_id?: number
+          item_name?: string
+          po_id?: number
+          quantity?: number
+          unit?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_items_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_items_po_id_fkey"
+            columns: ["po_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_orders: {
         Row: {
-          id: number;
-          invoice_number: string;
-          supplier_id: number;
-          outlet_id: number;
-          po_id: number | null;
-          invoice_date: string;
-          due_date: string | null;
-          subtotal: number;
-          tax_amount: number;
-          round_off: number;
-          total_amount: number;
-          file_path: string | null;
-          created_by: string | null;
-          created_at: string;
-        };
-        Insert: Partial<Database["public"]["Tables"]["supplier_invoices"]["Row"]> & {
-          invoice_number: string;
-          supplier_id: number;
-          outlet_id: number;
-          invoice_date: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["supplier_invoices"]["Row"]>;
-        Relationships: [];
-      };
+          created_at: string
+          created_by: string | null
+          id: number
+          notes: string | null
+          order_date: string
+          outlet_id: number
+          po_number: string
+          status: string
+          supplier_id: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: never
+          notes?: string | null
+          order_date?: string
+          outlet_id: number
+          po_number: string
+          status?: string
+          supplier_id: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: never
+          notes?: string | null
+          order_date?: string
+          outlet_id?: number
+          po_number?: string
+          status?: string
+          supplier_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_orders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_outlet_id_fkey"
+            columns: ["outlet_id"]
+            isOneToOne: false
+            referencedRelation: "outlets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff: {
+        Row: {
+          created_at: string
+          full_name: string
+          id: string
+          outlet_id: number | null
+          role: string
+        }
+        Insert: {
+          created_at?: string
+          full_name: string
+          id: string
+          outlet_id?: number | null
+          role?: string
+        }
+        Update: {
+          created_at?: string
+          full_name?: string
+          id?: string
+          outlet_id?: number | null
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_outlet_id_fkey"
+            columns: ["outlet_id"]
+            isOneToOne: false
+            referencedRelation: "outlets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_movements: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: number
+          item_id: number
+          quantity_delta: number
+          reason: string
+          reference_id: number | null
+          reference_type: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: never
+          item_id: number
+          quantity_delta: number
+          reason: string
+          reference_id?: number | null
+          reference_type?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: never
+          item_id?: number
+          quantity_delta?: number
+          reason?: string
+          reference_id?: number | null
+          reference_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       supplier_invoice_items: {
         Row: {
-          id: number;
-          invoice_id: number;
-          item_name: string;
-          rate: number | null;
-          qty: number;
-          unit: string | null;
-          taxable_value: number | null;
-          tax_amount: number;
-          amount: number;
-        };
-        Insert: Partial<Database["public"]["Tables"]["supplier_invoice_items"]["Row"]> & {
-          invoice_id: number;
-          item_name: string;
-          qty: number;
-          amount: number;
-        };
-        Update: Partial<Database["public"]["Tables"]["supplier_invoice_items"]["Row"]>;
-        Relationships: [];
-      };
-    };
-    Views: Record<string, never>;
+          amount: number
+          id: number
+          invoice_id: number
+          item_name: string
+          qty: number
+          rate: number | null
+          tax_amount: number
+          taxable_value: number | null
+          unit: string | null
+        }
+        Insert: {
+          amount: number
+          id?: never
+          invoice_id: number
+          item_name: string
+          qty: number
+          rate?: number | null
+          tax_amount?: number
+          taxable_value?: number | null
+          unit?: string | null
+        }
+        Update: {
+          amount?: number
+          id?: never
+          invoice_id?: number
+          item_name?: string
+          qty?: number
+          rate?: number | null
+          tax_amount?: number
+          taxable_value?: number | null
+          unit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_invoices: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          due_date: string | null
+          file_path: string | null
+          id: number
+          invoice_date: string
+          invoice_number: string
+          outlet_id: number
+          po_id: number | null
+          round_off: number
+          subtotal: number
+          supplier_id: number
+          tax_amount: number
+          total_amount: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          file_path?: string | null
+          id?: never
+          invoice_date: string
+          invoice_number: string
+          outlet_id: number
+          po_id?: number | null
+          round_off?: number
+          subtotal?: number
+          supplier_id: number
+          tax_amount?: number
+          total_amount?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          file_path?: string | null
+          id?: never
+          invoice_date?: string
+          invoice_number?: string
+          outlet_id?: number
+          po_id?: number | null
+          round_off?: number
+          subtotal?: number
+          supplier_id?: number
+          tax_amount?: number
+          total_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_invoices_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_invoices_outlet_id_fkey"
+            columns: ["outlet_id"]
+            isOneToOne: false
+            referencedRelation: "outlets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_invoices_po_id_fkey"
+            columns: ["po_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_invoices_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suppliers: {
+        Row: {
+          address: string | null
+          bank_account_holder: string | null
+          bank_account_number: string | null
+          bank_branch: string | null
+          bank_ifsc: string | null
+          bank_name: string | null
+          created_at: string
+          email: string | null
+          gstin: string | null
+          id: number
+          name: string
+          phone: string | null
+        }
+        Insert: {
+          address?: string | null
+          bank_account_holder?: string | null
+          bank_account_number?: string | null
+          bank_branch?: string | null
+          bank_ifsc?: string | null
+          bank_name?: string | null
+          created_at?: string
+          email?: string | null
+          gstin?: string | null
+          id?: never
+          name: string
+          phone?: string | null
+        }
+        Update: {
+          address?: string | null
+          bank_account_holder?: string | null
+          bank_account_number?: string | null
+          bank_branch?: string | null
+          bank_ifsc?: string | null
+          bank_name?: string | null
+          created_at?: string
+          email?: string | null
+          gstin?: string | null
+          id?: never
+          name?: string
+          phone?: string | null
+        }
+        Relationships: []
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
     Functions: {
       create_purchase_order: {
+        // p_notes is a nullable plpgsql arg; the generator can't see that
+        // from Postgres's catalog (only table columns carry nullability),
+        // so `| null` is added by hand here.
         Args: {
-          p_outlet_id: number;
-          p_supplier_id: number;
-          p_order_date: string;
-          p_notes: string | null;
-          p_items: {
-            item_id: number | null;
-            name: string;
-            unit: string;
-            quantity: number;
-          }[];
-        };
-        Returns: { id: number; po_number: string }[];
-      };
+          p_items: Json
+          p_notes: string | null
+          p_order_date: string
+          p_outlet_id: number
+          p_supplier_id: number
+        }
+        Returns: {
+          id: number
+          po_number: string
+        }[]
+      }
       create_supplier_invoice: {
+        // Same as above: p_due_date, p_file_path, p_po_id are nullable in
+        // the function body but the generator emits them as non-null.
         Args: {
-          p_invoice_number: string;
-          p_supplier_id: number;
-          p_outlet_id: number;
-          p_po_id: number | null;
-          p_invoice_date: string;
-          p_due_date: string | null;
-          p_subtotal: number;
-          p_tax_amount: number;
-          p_round_off: number;
-          p_total_amount: number;
-          p_file_path: string | null;
-          p_items: {
-            item_name: string;
-            rate: number | null;
-            qty: number;
-            unit: string | null;
-            taxable_value: number | null;
-            tax_amount: number;
-            amount: number;
-          }[];
-        };
-        Returns: { id: number }[];
-      };
-    };
-    Enums: Record<string, never>;
-    CompositeTypes: Record<string, never>;
-  };
-};
+          p_due_date: string | null
+          p_file_path: string | null
+          p_invoice_date: string
+          p_invoice_number: string
+          p_items: Json
+          p_outlet_id: number
+          p_po_id: number | null
+          p_round_off: number
+          p_subtotal: number
+          p_supplier_id: number
+          p_tax_amount: number
+          p_total_amount: number
+        }
+        Returns: {
+          id: number
+        }[]
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never) = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never) = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never) = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never) = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never) = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
+  public: {
+    Enums: {},
+  },
+} as const
