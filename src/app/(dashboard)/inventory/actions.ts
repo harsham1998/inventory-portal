@@ -38,36 +38,41 @@ export async function addInventoryItem(input: InventoryItemInput): Promise<Actio
   revalidatePath("/inventory");
 }
 
-export async function updateInventoryItem(
-  itemId: number,
-  input: InventoryItemInput,
-): Promise<ActionResult> {
-  const name = input.name.trim();
-  const unit = input.unit.trim();
-
-  if (!name || !unit) {
-    return { error: "Name and unit are required." };
-  }
-
+export async function bulkUpdateInventoryItems(
+  updates: { id: number; input: InventoryItemInput }[],
+): Promise<{ errors: Record<number, string> } | undefined> {
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("inventory_items")
-    .update({
-      name,
-      unit,
-      category: input.category.trim() || null,
-      reorder_level: Number.isFinite(input.reorderLevel) ? input.reorderLevel : 0,
-    })
-    .eq("id", itemId);
+  const errors: Record<number, string> = {};
 
-  if (error) {
-    if (error.code === "23505") {
-      return { error: `"${name}" already exists in inventory.` };
+  for (const { id, input } of updates) {
+    const name = input.name.trim();
+    const unit = input.unit.trim();
+
+    if (!name || !unit) {
+      errors[id] = "Name and unit are required.";
+      continue;
     }
-    return { error: error.message };
+
+    const { error } = await supabase
+      .from("inventory_items")
+      .update({
+        name,
+        unit,
+        category: input.category.trim() || null,
+        reorder_level: Number.isFinite(input.reorderLevel) ? input.reorderLevel : 0,
+      })
+      .eq("id", id);
+
+    if (error) {
+      errors[id] = error.code === "23505" ? `"${name}" already exists in inventory.` : error.message;
+    }
   }
 
   revalidatePath("/inventory");
+
+  if (Object.keys(errors).length > 0) {
+    return { errors };
+  }
 }
 
 export async function deleteInventoryItem(itemId: number): Promise<ActionResult> {

@@ -13,6 +13,8 @@ type Row = {
   itemId: number | null;
 };
 
+type PredictableItem = InventoryItemLookup & { currentStock: number; reorderLevel: number };
+
 const EXAMPLE = `Tandoori kabab - 1.5 kgs
 Garlic - 1.5 kgs
 Haryali - 0.5 kgs
@@ -24,7 +26,7 @@ export function PurchaseOrderComposer({
   suppliers,
   outlets,
 }: {
-  inventoryItems: InventoryItemLookup[];
+  inventoryItems: PredictableItem[];
   suppliers: { id: number; name: string }[];
   outlets: { id: number; name: string }[];
 }) {
@@ -37,8 +39,14 @@ export function PurchaseOrderComposer({
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [predictNotice, setPredictNotice] = useState<string | null>(null);
 
   const itemsById = useMemo(() => new Map(inventoryItems.map((i) => [i.id, i])), [inventoryItems]);
+
+  const lowStockItems = useMemo(
+    () => inventoryItems.filter((i) => i.currentStock <= i.reorderLevel && i.reorderLevel > 0),
+    [inventoryItems],
+  );
 
   function handleParse() {
     const parsed = parsePurchaseOrderText(rawText, inventoryItems);
@@ -52,6 +60,28 @@ export function PurchaseOrderComposer({
       })),
     );
     setError(null);
+    setPredictNotice(null);
+  }
+
+  function handlePredict() {
+    setError(null);
+    if (lowStockItems.length === 0) {
+      setPredictNotice(
+        "Nothing is at or below its minimum stock right now — set min-stock levels on the Inventory page if items aren't showing up here.",
+      );
+      setRows(null);
+      return;
+    }
+    setPredictNotice(null);
+    setRows(
+      lowStockItems.map((item, idx) => ({
+        key: `predict-${idx}-${item.id}`,
+        name: item.name,
+        quantity: String(Math.round((item.reorderLevel - item.currentStock) * 100) / 100),
+        unit: item.unit,
+        itemId: item.id,
+      })),
+    );
   }
 
   function updateRow(key: string, patch: Partial<Row>) {
@@ -150,7 +180,26 @@ export function PurchaseOrderComposer({
 
       <div className="rounded-2xl border border-zinc-200 bg-white p-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-zinc-700">Paste your item list</h2>
+          <h2 className="text-sm font-semibold text-zinc-700">Predict from low stock</h2>
+          <span className="text-xs text-zinc-400">{lowStockItems.length} item(s) at or below min stock</span>
+        </div>
+        <p className="mt-1 text-xs text-zinc-500">
+          Fills the review table below with every item at or below its minimum stock, ordering enough
+          to bring it back up to that level.
+        </p>
+        <button
+          type="button"
+          onClick={handlePredict}
+          className="mt-3 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500"
+        >
+          Predict purchase order
+        </button>
+        {predictNotice ? <p className="mt-3 text-sm text-zinc-500">{predictNotice}</p> : null}
+      </div>
+
+      <div className="rounded-2xl border border-zinc-200 bg-white p-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-zinc-700">Or paste your item list</h2>
           <button type="button" onClick={() => setRawText(EXAMPLE)} className="text-xs text-blue-600 hover:underline">
             Fill example
           </button>

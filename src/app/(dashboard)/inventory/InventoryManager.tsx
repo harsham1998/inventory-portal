@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import {
   addInventoryItem,
   adjustStock,
+  bulkUpdateInventoryItems,
   deleteInventoryItem,
-  updateInventoryItem,
   type InventoryItemInput,
 } from "./actions";
 
@@ -21,6 +21,10 @@ type InventoryItem = {
 
 const emptyForm: InventoryItemInput = { name: "", unit: "", category: "", reorderLevel: 0 };
 
+function toInput(item: InventoryItem): InventoryItemInput {
+  return { name: item.name, unit: item.unit, category: item.category ?? "", reorderLevel: item.reorder_level };
+}
+
 export function InventoryManager({ items }: { items: InventoryItem[] }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -28,9 +32,10 @@ export function InventoryManager({ items }: { items: InventoryItem[] }) {
   const [addForm, setAddForm] = useState<InventoryItemInput>(emptyForm);
   const [addError, setAddError] = useState<string | null>(null);
 
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState<InventoryItemInput>(emptyForm);
+  const [bulkEditing, setBulkEditing] = useState(false);
+  const [bulkForms, setBulkForms] = useState<Record<number, InventoryItemInput>>({});
   const [rowError, setRowError] = useState<Record<number, string>>({});
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [adjustQty, setAdjustQty] = useState<Record<number, string>>({});
 
   const [selectedCategory, setSelectedCategory] = useState<string>("");
@@ -65,25 +70,55 @@ export function InventoryManager({ items }: { items: InventoryItem[] }) {
     });
   }
 
-  function startEdit(item: InventoryItem) {
-    setEditingId(item.id);
-    setEditForm({
-      name: item.name,
-      unit: item.unit,
-      category: item.category ?? "",
-      reorderLevel: item.reorder_level,
-    });
-    setRowErrorFor(item.id, null);
+  function startBulkEdit() {
+    const seeded: Record<number, InventoryItemInput> = {};
+    for (const item of items) seeded[item.id] = toInput(item);
+    setBulkForms(seeded);
+    setRowError({});
+    setSaveError(null);
+    setBulkEditing(true);
   }
 
-  function saveEdit(id: number) {
+  function cancelBulkEdit() {
+    setBulkEditing(false);
+    setBulkForms({});
+    setRowError({});
+    setSaveError(null);
+  }
+
+  function updateBulkField(id: number, patch: Partial<InventoryItemInput>) {
+    setBulkForms((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
+  }
+
+  function saveBulkEdit() {
+    setSaveError(null);
+    const changed = items
+      .filter((item) => {
+        const form = bulkForms[item.id];
+        if (!form) return false;
+        return (
+          form.name !== item.name ||
+          form.unit !== item.unit ||
+          form.category !== (item.category ?? "") ||
+          form.reorderLevel !== item.reorder_level
+        );
+      })
+      .map((item) => ({ id: item.id, input: bulkForms[item.id] }));
+
+    if (changed.length === 0) {
+      setBulkEditing(false);
+      return;
+    }
+
     startTransition(async () => {
-      const result = await updateInventoryItem(id, editForm);
-      if (result?.error) {
-        setRowErrorFor(id, result.error);
+      const result = await bulkUpdateInventoryItems(changed);
+      if (result?.errors) {
+        setRowError(result.errors);
+        setSaveError(`${Object.keys(result.errors).length} item(s) couldn't be saved — see below.`);
         return;
       }
-      setEditingId(null);
+      setBulkEditing(false);
+      setBulkForms({});
       router.refresh();
     });
   }
@@ -168,25 +203,59 @@ export function InventoryManager({ items }: { items: InventoryItem[] }) {
         {addError ? <p className="px-6 pb-4 text-sm text-red-600">{addError}</p> : null}
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <label className="flex items-center gap-2 text-sm">
-          <span className="text-xs font-medium text-zinc-500">Section</span>
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="rounded-lg border border-zinc-300 px-3 py-2 text-sm"
-          >
-            <option value="">All categories</option>
-            {categories.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </label>
-        <span className="text-xs text-zinc-400">
-          {visibleItems.length} of {items.length} items
-        </span>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2 text-sm">
+            <span className="text-xs font-medium text-zinc-500">Section</span>
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+            >
+              <option value="">All categories</option>
+              {categories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </label>
+          <span className="text-xs text-zinc-400">
+            {visibleItems.length} of {items.length} items
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {bulkEditing ? (
+            <>
+              {saveError ? <span className="text-xs text-red-600">{saveError}</span> : null}
+              <button
+                type="button"
+                onClick={cancelBulkEdit}
+                disabled={pending}
+                className="rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-100 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={saveBulkEdit}
+                disabled={pending}
+                className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-50"
+              >
+                {pending ? "Saving…" : "Save all"}
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={startBulkEdit}
+              className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
+            >
+              Edit items
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white">
@@ -205,29 +274,29 @@ export function InventoryManager({ items }: { items: InventoryItem[] }) {
           <tbody className="divide-y divide-zinc-100">
             {visibleItems.map((item) => {
               const low = item.current_stock <= item.reorder_level;
-              const editing = editingId === item.id;
+              const form = bulkForms[item.id];
 
-              if (editing) {
+              if (bulkEditing && form) {
                 return (
-                  <tr key={item.id} className="bg-blue-50/40">
+                  <tr key={item.id} className="bg-blue-50/40 align-top">
                     <td className="px-6 py-2">
                       <input
-                        value={editForm.name}
-                        onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+                        value={form.name}
+                        onChange={(e) => updateBulkField(item.id, { name: e.target.value })}
                         className="w-36 rounded-lg border border-zinc-300 px-2 py-1 text-sm"
                       />
                     </td>
                     <td className="px-6 py-2">
                       <input
-                        value={editForm.category}
-                        onChange={(e) => setEditForm((f) => ({ ...f, category: e.target.value }))}
+                        value={form.category}
+                        onChange={(e) => updateBulkField(item.id, { category: e.target.value })}
                         className="w-32 rounded-lg border border-zinc-300 px-2 py-1 text-sm"
                       />
                     </td>
                     <td className="px-6 py-2">
                       <input
-                        value={editForm.unit}
-                        onChange={(e) => setEditForm((f) => ({ ...f, unit: e.target.value }))}
+                        value={form.unit}
+                        onChange={(e) => updateBulkField(item.id, { unit: e.target.value })}
                         className="w-16 rounded-lg border border-zinc-300 px-2 py-1 text-sm"
                       />
                     </td>
@@ -238,31 +307,14 @@ export function InventoryManager({ items }: { items: InventoryItem[] }) {
                       <input
                         type="number"
                         step="0.01"
-                        value={editForm.reorderLevel}
-                        onChange={(e) => setEditForm((f) => ({ ...f, reorderLevel: Number(e.target.value) }))}
+                        value={form.reorderLevel}
+                        onChange={(e) => updateBulkField(item.id, { reorderLevel: Number(e.target.value) })}
                         className="w-20 rounded-lg border border-zinc-300 px-2 py-1 text-sm"
                       />
                     </td>
-                    <td className="px-6 py-2 text-zinc-400">—</td>
+                    <td className="px-6 py-2 text-zinc-300">—</td>
                     <td className="px-6 py-2">
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => saveEdit(item.id)}
-                          disabled={pending}
-                          className="rounded-lg bg-zinc-900 px-2 py-1 text-xs font-medium text-white hover:bg-zinc-700 disabled:opacity-50"
-                        >
-                          Save
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setEditingId(null)}
-                          className="rounded-lg border border-zinc-300 px-2 py-1 text-xs text-zinc-600 hover:bg-zinc-100"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                      {rowError[item.id] ? <p className="mt-1 text-xs text-red-600">{rowError[item.id]}</p> : null}
+                      {rowError[item.id] ? <p className="text-xs text-red-600">{rowError[item.id]}</p> : null}
                     </td>
                   </tr>
                 );
@@ -301,14 +353,9 @@ export function InventoryManager({ items }: { items: InventoryItem[] }) {
                     </div>
                   </td>
                   <td className="px-6 py-3">
-                    <div className="flex items-center gap-3">
-                      <button type="button" onClick={() => startEdit(item)} className="text-xs text-blue-600 hover:underline">
-                        Edit
-                      </button>
-                      <button type="button" onClick={() => handleDelete(item)} className="text-xs text-zinc-400 hover:text-red-600">
-                        Delete
-                      </button>
-                    </div>
+                    <button type="button" onClick={() => handleDelete(item)} className="text-xs text-zinc-400 hover:text-red-600">
+                      Delete
+                    </button>
                     {rowError[item.id] ? <p className="mt-1 text-xs text-red-600">{rowError[item.id]}</p> : null}
                   </td>
                 </tr>
