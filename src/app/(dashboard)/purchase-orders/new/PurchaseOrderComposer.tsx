@@ -82,18 +82,22 @@ export function PurchaseOrderComposer({
 
   function handlePredict() {
     setError(null);
-    if (lowStockItems.length === 0) {
+    // At-the-floor items (current stock exactly equals min stock) still
+    // count as "low", but ordering a quantity of 0 isn't useful on a PO —
+    // only include rows that actually need restocking.
+    const toOrder = lowStockItems.filter((item) => item.reorderLevel - item.currentStock > 0);
+    if (toOrder.length === 0) {
       setPredictNotice(
         predictCategory
-          ? `Nothing in "${predictCategory}" is at or below its minimum stock right now.`
-          : "Nothing is at or below its minimum stock right now — set min-stock levels on the Inventory page if items aren't showing up here.",
+          ? `Nothing in "${predictCategory}" needs restocking right now.`
+          : "Nothing needs restocking right now — set min-stock levels on the Inventory page if items aren't showing up here.",
       );
       setRows(null);
       return;
     }
     setPredictNotice(null);
     setRows(
-      lowStockItems.map((item, idx) => ({
+      toOrder.map((item, idx) => ({
         key: `predict-${idx}-${item.id}`,
         name: item.name,
         quantity: String(Math.round((item.reorderLevel - item.currentStock) * 100) / 100),
@@ -259,11 +263,25 @@ export function PurchaseOrderComposer({
 
       {rows ? (
         <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white">
-          <div className="border-b border-zinc-100 px-6 py-4">
-            <h2 className="text-sm font-semibold text-zinc-700">Review before creating the PO</h2>
-            <p className="mt-1 text-xs text-zinc-500">
-              Items not found in inventory are set to “create new” — pick an existing item instead if it&apos;s a match.
-            </p>
+          <div className="flex items-center justify-between border-b border-zinc-100 px-6 py-4">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-700">Review before creating the PO</h2>
+              <p className="mt-1 text-xs text-zinc-500">
+                Items not found in inventory are set to “create new” — pick an existing item instead if it&apos;s a match.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                setRows((prev) => [
+                  ...(prev ?? []),
+                  { key: `manual-${crypto.randomUUID()}`, name: "", quantity: "", unit: "", itemId: null },
+                ])
+              }
+              className="shrink-0 text-xs text-blue-600 hover:underline"
+            >
+              + Add item
+            </button>
           </div>
           <table className="w-full text-left text-sm">
             <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
