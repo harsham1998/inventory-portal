@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   addInventoryItem,
@@ -32,6 +32,16 @@ export function InventoryManager({ items }: { items: InventoryItem[] }) {
   const [editForm, setEditForm] = useState<InventoryItemInput>(emptyForm);
   const [rowError, setRowError] = useState<Record<number, string>>({});
   const [adjustQty, setAdjustQty] = useState<Record<number, string>>({});
+
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
+
+  const categories = useMemo(
+    () =>
+      Array.from(new Set(items.map((i) => i.category).filter((c): c is string => Boolean(c)))).sort(),
+    [items],
+  );
+
+  const visibleItems = selectedCategory ? items.filter((i) => i.category === selectedCategory) : items;
 
   function setRowErrorFor(id: number, message: string | null) {
     setRowError((prev) => {
@@ -158,6 +168,27 @@ export function InventoryManager({ items }: { items: InventoryItem[] }) {
         {addError ? <p className="px-6 pb-4 text-sm text-red-600">{addError}</p> : null}
       </div>
 
+      <div className="flex flex-wrap items-center gap-3">
+        <label className="flex items-center gap-2 text-sm">
+          <span className="text-xs font-medium text-zinc-500">Section</span>
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+          >
+            <option value="">All categories</option>
+            {categories.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </label>
+        <span className="text-xs text-zinc-400">
+          {visibleItems.length} of {items.length} items
+        </span>
+      </div>
+
       <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white">
         <table className="w-full text-left text-sm">
           <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
@@ -172,7 +203,7 @@ export function InventoryManager({ items }: { items: InventoryItem[] }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
-            {items.map((item) => {
+            {visibleItems.map((item) => {
               const low = item.current_stock <= item.reorder_level;
               const editing = editingId === item.id;
 
@@ -283,10 +314,10 @@ export function InventoryManager({ items }: { items: InventoryItem[] }) {
                 </tr>
               );
             })}
-            {items.length === 0 ? (
+            {visibleItems.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-6 py-8 text-center text-sm text-zinc-400">
-                  No items yet.
+                  {items.length === 0 ? "No items yet." : "No items in this category."}
                 </td>
               </tr>
             ) : null}
