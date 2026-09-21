@@ -13,7 +13,11 @@ type Row = {
   itemId: number | null;
 };
 
-type PredictableItem = InventoryItemLookup & { currentStock: number; reorderLevel: number };
+type PredictableItem = InventoryItemLookup & {
+  category: string | null;
+  currentStock: number;
+  reorderLevel: number;
+};
 
 const EXAMPLE = `Tandoori kabab - 1.5 kgs
 Garlic - 1.5 kgs
@@ -40,12 +44,25 @@ export function PurchaseOrderComposer({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [predictNotice, setPredictNotice] = useState<string | null>(null);
+  const [predictCategory, setPredictCategory] = useState<string>("");
 
   const itemsById = useMemo(() => new Map(inventoryItems.map((i) => [i.id, i])), [inventoryItems]);
 
-  const lowStockItems = useMemo(
-    () => inventoryItems.filter((i) => i.currentStock <= i.reorderLevel && i.reorderLevel > 0),
+  const categories = useMemo(
+    () =>
+      Array.from(new Set(inventoryItems.map((i) => i.category).filter((c): c is string => Boolean(c)))).sort(),
     [inventoryItems],
+  );
+
+  const lowStockItems = useMemo(
+    () =>
+      inventoryItems.filter(
+        (i) =>
+          i.currentStock <= i.reorderLevel &&
+          i.reorderLevel > 0 &&
+          (!predictCategory || i.category === predictCategory),
+      ),
+    [inventoryItems, predictCategory],
   );
 
   function handleParse() {
@@ -67,7 +84,9 @@ export function PurchaseOrderComposer({
     setError(null);
     if (lowStockItems.length === 0) {
       setPredictNotice(
-        "Nothing is at or below its minimum stock right now — set min-stock levels on the Inventory page if items aren't showing up here.",
+        predictCategory
+          ? `Nothing in "${predictCategory}" is at or below its minimum stock right now.`
+          : "Nothing is at or below its minimum stock right now — set min-stock levels on the Inventory page if items aren't showing up here.",
       );
       setRows(null);
       return;
@@ -187,13 +206,30 @@ export function PurchaseOrderComposer({
           Fills the review table below with every item at or below its minimum stock, ordering enough
           to bring it back up to that level.
         </p>
-        <button
-          type="button"
-          onClick={handlePredict}
-          className="mt-3 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500"
-        >
-          Predict purchase order
-        </button>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2 text-sm">
+            <span className="text-xs font-medium text-zinc-500">Category</span>
+            <select
+              value={predictCategory}
+              onChange={(e) => setPredictCategory(e.target.value)}
+              className="rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+            >
+              <option value="">All categories</option>
+              {categories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={handlePredict}
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500"
+          >
+            Predict purchase order
+          </button>
+        </div>
         {predictNotice ? <p className="mt-3 text-sm text-zinc-500">{predictNotice}</p> : null}
       </div>
 
