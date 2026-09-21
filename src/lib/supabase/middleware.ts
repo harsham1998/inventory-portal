@@ -1,8 +1,8 @@
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function updateSession(request: NextRequest) {
-  let response = NextResponse.next({ request });
+  const cookiesToApply: { name: string; value: string; options: CookieOptions }[] = [];
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,10 +14,7 @@ export async function updateSession(request: NextRequest) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          response = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options),
-          );
+          cookiesToApply.push(...cookiesToSet);
         },
       },
     },
@@ -41,5 +38,17 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Middleware already network-validated the session above. Forward the
+  // result as a trusted request header so the dashboard layout doesn't have
+  // to make its own redundant round-trip to Supabase just to get the user
+  // id — that was doubling auth latency on every navigation.
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.delete("x-user-id");
+  if (user) {
+    requestHeaders.set("x-user-id", user.id);
+  }
+
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  cookiesToApply.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
   return response;
 }

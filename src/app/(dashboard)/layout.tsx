@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { NavLink } from "@/components/NavLink";
 import { signOut } from "./actions";
@@ -13,19 +14,22 @@ const NAV_ITEMS = [
 ];
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Middleware already network-validated the session for this request and
+  // forwarded the user id via a trusted header — re-checking with another
+  // supabase.auth.getUser() call here would just double the auth round-trip
+  // on every navigation for no extra safety (middleware already redirects
+  // unauthenticated requests before they reach this layout).
+  const userId = (await headers()).get("x-user-id");
 
-  if (!user) {
+  if (!userId) {
     redirect("/login");
   }
 
+  const supabase = await createClient();
   const { data: staff } = await supabase
     .from("staff")
     .select("full_name, role")
-    .eq("id", user.id)
+    .eq("id", userId)
     .maybeSingle();
 
   if (!staff) {
