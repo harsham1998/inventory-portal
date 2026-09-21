@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { parseInvoicePdf, type ParsedInvoice } from "@/lib/invoice-pdf";
 
 export type InvoiceItemInput = {
   itemName: string;
@@ -68,4 +69,30 @@ export async function createSupplierInvoice(
   }
 
   return { id: data.id as number };
+}
+
+export async function parseInvoiceFile(
+  formData: FormData,
+): Promise<{ error: string } | ParsedInvoice> {
+  const file = formData.get("file");
+  if (!(file instanceof File)) {
+    return { error: "No file received." };
+  }
+  if (file.type !== "application/pdf") {
+    return { error: "Only PDF files can be auto-extracted right now — enter this one manually." };
+  }
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  try {
+    const parsed = await parseInvoicePdf(buffer);
+    if (parsed.items.length === 0) {
+      return {
+        error: "Couldn't find a recognizable item table in this PDF — enter the items manually.",
+      };
+    }
+    return parsed;
+  } catch {
+    return { error: "Couldn't read this PDF — enter the items manually." };
+  }
 }

@@ -3,10 +3,11 @@ import { InvoiceComposer } from "./InvoiceComposer";
 
 export default async function NewInvoicePage() {
   const supabase = await createClient();
-  const [{ data: suppliers }, { data: outlets }, { data: purchaseOrders }] = await Promise.all([
+  const [{ data: suppliers }, { data: outlets }, { data: purchaseOrders }, { data: poItems }] = await Promise.all([
     supabase.from("suppliers").select("id, name").order("name"),
     supabase.from("outlets").select("id, name").order("name"),
     supabase.from("purchase_orders").select("id, po_number, supplier_id").order("created_at", { ascending: false }),
+    supabase.from("purchase_order_items").select("po_id, item_name, quantity, unit").order("id"),
   ]);
 
   return (
@@ -22,6 +23,7 @@ export default async function NewInvoicePage() {
         suppliers={suppliers ?? []}
         outlets={outlets ?? []}
         purchaseOrders={purchaseOrders ?? []}
+        poItems={poItems ?? []}
       />
     </div>
   );
