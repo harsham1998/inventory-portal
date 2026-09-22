@@ -2,35 +2,56 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createSalesRecord } from "./actions";
+import { createClient } from "@/lib/supabase/client";
+import { createSalesRecord, parseSalesReportFile } from "./actions";
+
+type MenuItem = { id: number; name: string; category: string | null; selling_price: number | null };
 
 type Row = {
   key: string;
-  menuItemId: string;
+  name: string;
+  menuItemId: number | null;
+  category: string | null;
   quantity: string;
   unitPrice: string;
 };
 
 function emptyRow(): Row {
-  return { key: crypto.randomUUID(), menuItemId: "", quantity: "", unitPrice: "" };
+  return { key: crypto.randomUUID(), name: "", menuItemId: null, category: null, quantity: "", unitPrice: "" };
+}
+
+function normalizeName(value: string): string {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/'/g, "")
+    .replace(/s$/, "");
 }
 
 export function SalesComposer({
   menuItems,
   outlets,
 }: {
-  menuItems: { id: number; name: string; selling_price: number | null }[];
+  menuItems: MenuItem[];
   outlets: { id: number; name: string }[];
 }) {
   const router = useRouter();
-  const [mode, setMode] = useState<"upload" | "manual">("manual");
+  const [mode, setMode] = useState<"upload" | "manual">("upload");
   const [outletId, setOutletId] = useState(outlets[0] ? String(outlets[0].id) : "");
   const [saleDate, setSaleDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [rows, setRows] = useState<Row[]>([emptyRow()]);
+  const [rows, setRows] = useState<Row[]>([]);
+  const [file, setFile] = useState<File | null>(null);
+  const [extracting, setExtracting] = useState(false);
+  const [extractNotice, setExtractNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const menuById = useMemo(() => new Map(menuItems.map((m) => [m.id, m])), [menuItems]);
+  const menuByNormalizedName = useMemo(
+    () => new Map(menuItems.map((m) => [normalizeName(m.name), m])),
+    [menuItems],
+  );
 
   const total = rows.reduce((sum, r) => sum + (Number(r.quantity) || 0) * (Number(r.unitPrice) || 0), 0);
 
@@ -38,29 +59,96 @@ export function SalesComposer({
     setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
   }
 
+  async function handleExtract() {
+    if (!file) {
+      setExtractNotice("Choose a PDF first.");
+      return;
+    }
+    setExtracting(true);
+    setExtractNotice(null);
+    setError(null);
+
+    const formData = new FormData();
+    formData.set("file", file);
+    const result = await parseSalesReportFile(formData);
+    setExtracting(false);
+
+    if ("error" in result) {
+      setExtractNotice(result.error);
+      return;
+    }
+
+    setRows(
+      result.items.map((item) => {
+        const matched = menuByNormalizedName.get(normalizeName(item.itemName));
+        return {
+          key: crypto.randomUUID(),
+          name: item.itemName,
+          menuItemId: matched?.id ?? null,
+          category: item.category ?? matched?.category ?? null,
+          quantity: String(item.qty),
+          unitPrice: item.qty > 0 ? String(Math.round((item.total / item.qty) * 100) / 100) : "0",
+        };
+      }),
+    );
+    const unmatchedCount = result.items.filter((item) => !menuByNormalizedName.has(normalizeName(item.itemName))).length;
+    setExtractNotice(
+      `Extracted ${result.items.length} item(s)${
+        unmatchedCount > 0 ? ` — ${unmatchedCount} not found on the menu, set to "create new"` : ""
+      }. Review before saving.`,
+    );
+  }
+
   async function handleSubmit() {
     setError(null);
+
     if (!outletId) {
       setError("Pick an outlet.");
       return;
     }
+    if (rows.length === 0) {
+      setError("Add at least one item sold.");
+      return;
+    }
 
     const items = rows
-      .filter((r) => r.menuItemId)
+      .filter((r) => r.name.trim())
       .map((r) => ({
-        menuItemId: Number(r.menuItemId),
-        name: menuById.get(Number(r.menuItemId))?.name ?? "",
+        menuItemId: r.menuItemId,
+        name: r.name.trim(),
+        category: r.category,
         quantity: Number(r.quantity),
         unitPrice: Number(r.unitPrice) || 0,
       }));
 
     if (items.length === 0 || items.some((i) => !Number.isFinite(i.quantity) || i.quantity <= 0)) {
-      setError("Every row needs a dish and a quantity greater than 0.");
+      setError("Every row needs a name and a quantity greater than 0.");
       return;
     }
 
     setSubmitting(true);
-    const result = await createSalesRecord({ outletId: Number(outletId), saleDate, items });
+
+    let filePath: string | null = null;
+    if (file) {
+      const supabase = createClient();
+      const path = `${outletId}/${saleDate}-${Date.now()}-${file.name}`;
+      const { error: uploadError } = await supabase.storage.from("sales-reports").upload(path, file);
+      if (uploadError) {
+        setSubmitting(false);
+        setError(`File upload failed: ${uploadError.message}`);
+        return;
+      }
+      filePath = path;
+    }
+
+    const result = await createSalesRecord({
+      outletId: Number(outletId),
+      saleDate,
+      source: mode === "upload" && file ? "pdf_upload" : "manual",
+      filePath,
+      items,
+    });
+
     setSubmitting(false);
 
     if ("error" in result) {
@@ -121,11 +209,32 @@ export function SalesComposer({
             Enter manually
           </button>
         </div>
+
         {mode === "upload" ? (
-          <p className="mt-4 text-sm text-zinc-500">
-            PDF upload for sales reports isn&apos;t wired up yet — share a sample report and it&apos;ll
-            work the same way invoice upload does. Use &quot;Enter manually&quot; for now.
-          </p>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <input
+              type="file"
+              accept="application/pdf"
+              onChange={(e) => {
+                setFile(e.target.files?.[0] ?? null);
+                setExtractNotice(null);
+              }}
+              className="text-sm"
+            />
+            <button
+              type="button"
+              onClick={handleExtract}
+              disabled={extracting || !file}
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50"
+            >
+              {extracting ? "Extracting…" : "Extract items"}
+            </button>
+            <p className="w-full text-xs text-zinc-500">
+              PDF sales reports (e.g. Petpooja item-wise export). Fills the table below so you can
+              review and match each item to a menu dish before saving.
+            </p>
+            {extractNotice ? <p className="text-sm text-zinc-600">{extractNotice}</p> : null}
+          </div>
         ) : (
           <p className="mt-4 text-xs text-zinc-500">Add each dish sold below.</p>
         )}
@@ -141,7 +250,8 @@ export function SalesComposer({
         <table className="w-full text-left text-sm">
           <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
             <tr>
-              <th className="px-4 py-2 font-medium">Dish</th>
+              <th className="px-4 py-2 font-medium">Item</th>
+              <th className="px-4 py-2 font-medium">Match</th>
               <th className="px-4 py-2 font-medium">Qty</th>
               <th className="px-4 py-2 font-medium">Unit price</th>
               <th className="px-4 py-2 font-medium">Amount</th>
@@ -154,18 +264,32 @@ export function SalesComposer({
               return (
                 <tr key={row.key}>
                   <td className="px-4 py-2">
+                    <input
+                      value={row.name}
+                      onChange={(e) => updateRow(row.key, { name: e.target.value })}
+                      className="w-40 rounded-lg border border-zinc-300 px-2 py-1 text-sm"
+                    />
+                  </td>
+                  <td className="px-4 py-2">
                     <select
-                      value={row.menuItemId}
+                      value={row.menuItemId ?? ""}
                       onChange={(e) => {
-                        const menuItem = menuById.get(Number(e.target.value));
+                        const value = e.target.value;
+                        if (!value) {
+                          updateRow(row.key, { menuItemId: null });
+                          return;
+                        }
+                        const matched = menuById.get(Number(value));
                         updateRow(row.key, {
-                          menuItemId: e.target.value,
-                          unitPrice: row.unitPrice || String(menuItem?.selling_price ?? ""),
+                          menuItemId: Number(value),
+                          unitPrice: row.unitPrice || String(matched?.selling_price ?? ""),
                         });
                       }}
-                      className="w-44 rounded-lg border border-zinc-300 px-2 py-1 text-sm"
+                      className={`rounded-lg border px-2 py-1 text-sm ${
+                        row.menuItemId ? "border-zinc-300" : "border-amber-400 bg-amber-50"
+                      }`}
                     >
-                      <option value="">Select dish…</option>
+                      <option value="">+ Create new item</option>
                       {menuItems.map((m) => (
                         <option key={m.id} value={m.id}>
                           {m.name}
@@ -200,6 +324,13 @@ export function SalesComposer({
                 </tr>
               );
             })}
+            {rows.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-6 py-8 text-center text-sm text-zinc-400">
+                  No items yet.
+                </td>
+              </tr>
+            ) : null}
           </tbody>
         </table>
 

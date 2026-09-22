@@ -4,7 +4,7 @@ import { SalesComposer } from "./SalesComposer";
 export default async function NewSalesRecordPage() {
   const supabase = await createClient();
   const [{ data: menuItems }, { data: outlets }] = await Promise.all([
-    supabase.from("menu_items").select("id, name, selling_price").order("name"),
+    supabase.from("menu_items").select("id, name, category, selling_price").order("name"),
     supabase.from("outlets").select("id, name").order("name"),
   ]);
 
