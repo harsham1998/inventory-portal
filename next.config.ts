@@ -12,7 +12,10 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     // The native .node binary ships in a separate platform-specific sibling
     // package (@napi-rs/canvas-linux-x64-gnu on Vercel), not the main one.
+    // Every route whose server action calls pdf-parse needs this listed
+    // explicitly — it's not inherited from a shared glob.
     "/invoices/new": ["./node_modules/@napi-rs/canvas*/**"],
+    "/sales/new": ["./node_modules/@napi-rs/canvas*/**"],
   },
 };
 
