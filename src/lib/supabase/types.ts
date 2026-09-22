@@ -50,7 +50,9 @@ export type Database = {
           current_stock: number
           id: number
           name: string
+          purchase_cost: number | null
           reorder_level: number
+          selling_cost: number | null
           unit: string
         }
         Insert: {
@@ -59,7 +61,9 @@ export type Database = {
           current_stock?: number
           id?: never
           name: string
+          purchase_cost?: number | null
           reorder_level?: number
+          selling_cost?: number | null
           unit: string
         }
         Update: {
@@ -68,7 +72,9 @@ export type Database = {
           current_stock?: number
           id?: never
           name?: string
+          purchase_cost?: number | null
           reorder_level?: number
+          selling_cost?: number | null
           unit?: string
         }
         Relationships: []
@@ -105,6 +111,7 @@ export type Database = {
       }
       purchase_order_items: {
         Row: {
+          estimated_unit_cost: number | null
           id: number
           item_id: number
           item_name: string
@@ -113,6 +120,7 @@ export type Database = {
           unit: string
         }
         Insert: {
+          estimated_unit_cost?: number | null
           id?: never
           item_id: number
           item_name: string
@@ -121,6 +129,7 @@ export type Database = {
           unit: string
         }
         Update: {
+          estimated_unit_cost?: number | null
           id?: never
           item_id?: number
           item_name?: string

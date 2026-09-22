@@ -14,6 +14,8 @@ export default async function PurchaseOrderDetailPage({
   if (!detail) notFound();
 
   const { po, outlet, supplier, items } = detail;
+  const hasCosts = items.some((i) => i.estimated_unit_cost !== null);
+  const estimatedTotal = items.reduce((sum, i) => sum + (i.estimated_unit_cost ?? 0) * i.quantity, 0);
 
   return (
     <div className="flex flex-col gap-6">
@@ -58,6 +60,12 @@ export default async function PurchaseOrderDetailPage({
               <th className="px-6 py-3 font-medium">Item</th>
               <th className="px-6 py-3 font-medium">Qty</th>
               <th className="px-6 py-3 font-medium">Unit</th>
+              {hasCosts ? (
+                <>
+                  <th className="px-6 py-3 font-medium">Est. cost/unit</th>
+                  <th className="px-6 py-3 font-medium">Est. total</th>
+                </>
+              ) : null}
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
@@ -67,9 +75,31 @@ export default async function PurchaseOrderDetailPage({
                 <td className="px-6 py-3 font-medium text-zinc-900">{item.item_name}</td>
                 <td className="px-6 py-3 text-zinc-500">{item.quantity}</td>
                 <td className="px-6 py-3 text-zinc-500">{item.unit}</td>
+                {hasCosts ? (
+                  <>
+                    <td className="px-6 py-3 text-zinc-500">
+                      {item.estimated_unit_cost !== null ? `₹${item.estimated_unit_cost.toFixed(2)}` : "—"}
+                    </td>
+                    <td className="px-6 py-3 text-zinc-500">
+                      {item.estimated_unit_cost !== null
+                        ? `₹${(item.estimated_unit_cost * item.quantity).toFixed(2)}`
+                        : "—"}
+                    </td>
+                  </>
+                ) : null}
               </tr>
             ))}
           </tbody>
+          {hasCosts ? (
+            <tfoot>
+              <tr className="border-t border-zinc-100">
+                <td colSpan={5} className="px-6 py-3 text-right text-xs font-medium text-zinc-500">
+                  Estimated PO total
+                </td>
+                <td className="px-6 py-3 font-semibold text-zinc-900">₹{estimatedTotal.toFixed(2)}</td>
+              </tr>
+            </tfoot>
+          ) : null}
         </table>
       </div>
 

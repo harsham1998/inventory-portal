@@ -14,7 +14,11 @@ export async function getPurchaseOrderDetail(
       .select("id, po_number, order_date, status, notes, outlet_id, supplier_id")
       .eq("id", id)
       .maybeSingle(),
-    supabase.from("purchase_order_items").select("item_name, quantity, unit").eq("po_id", id).order("id"),
+    supabase
+      .from("purchase_order_items")
+      .select("item_name, quantity, unit, estimated_unit_cost")
+      .eq("po_id", id)
+      .order("id"),
   ]);
 
   if (!po) return null;

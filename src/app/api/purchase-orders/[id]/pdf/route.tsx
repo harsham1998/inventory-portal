@@ -32,7 +32,12 @@ export async function GET(
         orderDate: po.order_date,
         outlet,
         supplier,
-        items: items.map((i) => ({ name: i.item_name, quantity: i.quantity, unit: i.unit })),
+        items: items.map((i) => ({
+          name: i.item_name,
+          quantity: i.quantity,
+          unit: i.unit,
+          estimatedUnitCost: i.estimated_unit_cost,
+        })),
         notes: po.notes,
       }}
     />,

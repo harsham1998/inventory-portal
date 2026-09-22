@@ -4,7 +4,10 @@ import { PurchaseOrderComposer } from "./PurchaseOrderComposer";
 export default async function NewPurchaseOrderPage() {
   const supabase = await createClient();
   const [{ data: items }, { data: suppliers }, { data: outlets }] = await Promise.all([
-    supabase.from("inventory_items").select("id, name, unit, category, current_stock, reorder_level").order("name"),
+    supabase
+      .from("inventory_items")
+      .select("id, name, unit, category, current_stock, reorder_level, purchase_cost")
+      .order("name"),
     supabase.from("suppliers").select("id, name").order("name"),
     supabase.from("outlets").select("id, name").order("name"),
   ]);
@@ -27,6 +30,7 @@ export default async function NewPurchaseOrderPage() {
           category: item.category,
           currentStock: item.current_stock,
           reorderLevel: item.reorder_level,
+          purchaseCost: item.purchase_cost,
         }))}
         suppliers={suppliers ?? []}
         outlets={outlets ?? []}

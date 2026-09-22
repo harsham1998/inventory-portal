@@ -5,7 +5,7 @@ export default async function InventoryPage() {
   const supabase = await createClient();
   const { data: items } = await supabase
     .from("inventory_items")
-    .select("id, name, unit, category, current_stock, reorder_level")
+    .select("id, name, unit, category, current_stock, reorder_level, purchase_cost, selling_cost")
     .order("category", { nullsFirst: false })
     .order("name");
 

@@ -7,6 +7,7 @@ export type ComposerItem = {
   name: string;
   unit: string;
   quantity: number;
+  unitCost: number | null;
 };
 
 export type CreatePurchaseOrderInput = {
@@ -39,6 +40,7 @@ export async function createPurchaseOrder(
         name: item.name,
         unit: item.unit,
         quantity: item.quantity,
+        unit_cost: item.unitCost,
       })),
     })
     .single();

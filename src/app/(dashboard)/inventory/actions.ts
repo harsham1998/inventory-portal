@@ -10,6 +10,8 @@ export type InventoryItemInput = {
   unit: string;
   category: string;
   reorderLevel: number;
+  purchaseCost: number | null;
+  sellingCost: number | null;
 };
 
 export async function addInventoryItem(input: InventoryItemInput): Promise<ActionResult> {
@@ -26,6 +28,8 @@ export async function addInventoryItem(input: InventoryItemInput): Promise<Actio
     unit,
     category: input.category.trim() || null,
     reorder_level: Number.isFinite(input.reorderLevel) ? input.reorderLevel : 0,
+    purchase_cost: input.purchaseCost,
+    selling_cost: input.sellingCost,
   });
 
   if (error) {
@@ -60,6 +64,8 @@ export async function bulkUpdateInventoryItems(
         unit,
         category: input.category.trim() || null,
         reorder_level: Number.isFinite(input.reorderLevel) ? input.reorderLevel : 0,
+        purchase_cost: input.purchaseCost,
+        selling_cost: input.sellingCost,
       })
       .eq("id", id);
 

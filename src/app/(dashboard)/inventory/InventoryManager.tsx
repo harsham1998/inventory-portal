@@ -17,12 +17,39 @@ type InventoryItem = {
   category: string | null;
   current_stock: number;
   reorder_level: number;
+  purchase_cost: number | null;
+  selling_cost: number | null;
 };
 
-const emptyForm: InventoryItemInput = { name: "", unit: "", category: "", reorderLevel: 0 };
+const emptyForm: InventoryItemInput = {
+  name: "",
+  unit: "",
+  category: "",
+  reorderLevel: 0,
+  purchaseCost: null,
+  sellingCost: null,
+};
 
 function toInput(item: InventoryItem): InventoryItemInput {
-  return { name: item.name, unit: item.unit, category: item.category ?? "", reorderLevel: item.reorder_level };
+  return {
+    name: item.name,
+    unit: item.unit,
+    category: item.category ?? "",
+    reorderLevel: item.reorder_level,
+    purchaseCost: item.purchase_cost,
+    sellingCost: item.selling_cost,
+  };
+}
+
+function formatMoney(value: number | null): string {
+  return value === null ? "—" : `₹${value.toFixed(2)}`;
+}
+
+function margin(purchaseCost: number | null, sellingCost: number | null): { amount: string; pct: string } {
+  if (purchaseCost === null || sellingCost === null) return { amount: "—", pct: "" };
+  const amount = sellingCost - purchaseCost;
+  const pct = sellingCost > 0 ? ` (${((amount / sellingCost) * 100).toFixed(0)}%)` : "";
+  return { amount: `₹${amount.toFixed(2)}`, pct };
 }
 
 export function InventoryManager({ items }: { items: InventoryItem[] }) {
@@ -100,7 +127,9 @@ export function InventoryManager({ items }: { items: InventoryItem[] }) {
           form.name !== item.name ||
           form.unit !== item.unit ||
           form.category !== (item.category ?? "") ||
-          form.reorderLevel !== item.reorder_level
+          form.reorderLevel !== item.reorder_level ||
+          form.purchaseCost !== item.purchase_cost ||
+          form.sellingCost !== item.selling_cost
         );
       })
       .map((item) => ({ id: item.id, input: bulkForms[item.id] }));
@@ -161,7 +190,7 @@ export function InventoryManager({ items }: { items: InventoryItem[] }) {
             <input
               value={addForm.name}
               onChange={(e) => setAddForm((f) => ({ ...f, name: e.target.value }))}
-              className="w-48 rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+              className="w-40 rounded-lg border border-zinc-300 px-3 py-2 text-sm"
             />
           </label>
           <label className="flex flex-col gap-1 text-sm">
@@ -170,7 +199,7 @@ export function InventoryManager({ items }: { items: InventoryItem[] }) {
               value={addForm.unit}
               onChange={(e) => setAddForm((f) => ({ ...f, unit: e.target.value }))}
               placeholder="kgs, pcs…"
-              className="w-28 rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+              className="w-24 rounded-lg border border-zinc-300 px-3 py-2 text-sm"
             />
           </label>
           <label className="flex flex-col gap-1 text-sm">
@@ -178,17 +207,37 @@ export function InventoryManager({ items }: { items: InventoryItem[] }) {
             <input
               value={addForm.category}
               onChange={(e) => setAddForm((f) => ({ ...f, category: e.target.value }))}
-              className="w-40 rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+              className="w-36 rounded-lg border border-zinc-300 px-3 py-2 text-sm"
             />
           </label>
           <label className="flex flex-col gap-1 text-sm">
-            <span className="text-xs font-medium text-zinc-500">Min stock (reorder level)</span>
+            <span className="text-xs font-medium text-zinc-500">Min stock</span>
             <input
               type="number"
               step="0.01"
               value={addForm.reorderLevel}
               onChange={(e) => setAddForm((f) => ({ ...f, reorderLevel: Number(e.target.value) }))}
-              className="w-32 rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+              className="w-24 rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-xs font-medium text-zinc-500">Purchase cost</span>
+            <input
+              type="number"
+              step="0.01"
+              value={addForm.purchaseCost ?? ""}
+              onChange={(e) => setAddForm((f) => ({ ...f, purchaseCost: e.target.value ? Number(e.target.value) : null }))}
+              className="w-28 rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-xs font-medium text-zinc-500">Selling cost</span>
+            <input
+              type="number"
+              step="0.01"
+              value={addForm.sellingCost ?? ""}
+              onChange={(e) => setAddForm((f) => ({ ...f, sellingCost: e.target.value ? Number(e.target.value) : null }))}
+              className="w-28 rounded-lg border border-zinc-300 px-3 py-2 text-sm"
             />
           </label>
           <button
@@ -258,7 +307,7 @@ export function InventoryManager({ items }: { items: InventoryItem[] }) {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+      <div className="overflow-x-auto rounded-2xl border border-zinc-200 bg-white">
         <table className="w-full text-left text-sm">
           <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
             <tr>
@@ -267,6 +316,9 @@ export function InventoryManager({ items }: { items: InventoryItem[] }) {
               <th className="px-6 py-3 font-medium">Unit</th>
               <th className="px-6 py-3 font-medium">Stock</th>
               <th className="px-6 py-3 font-medium">Min stock</th>
+              <th className="px-6 py-3 font-medium">Purchase cost</th>
+              <th className="px-6 py-3 font-medium">Selling cost</th>
+              <th className="px-6 py-3 font-medium">Margin</th>
               <th className="px-6 py-3 font-medium">Adjust</th>
               <th className="px-6 py-3 font-medium" />
             </tr>
@@ -277,20 +329,21 @@ export function InventoryManager({ items }: { items: InventoryItem[] }) {
               const form = bulkForms[item.id];
 
               if (bulkEditing && form) {
+                const liveMargin = margin(form.purchaseCost, form.sellingCost);
                 return (
                   <tr key={item.id} className="bg-blue-50/40 align-top">
                     <td className="px-6 py-2">
                       <input
                         value={form.name}
                         onChange={(e) => updateBulkField(item.id, { name: e.target.value })}
-                        className="w-36 rounded-lg border border-zinc-300 px-2 py-1 text-sm"
+                        className="w-32 rounded-lg border border-zinc-300 px-2 py-1 text-sm"
                       />
                     </td>
                     <td className="px-6 py-2">
                       <input
                         value={form.category}
                         onChange={(e) => updateBulkField(item.id, { category: e.target.value })}
-                        className="w-32 rounded-lg border border-zinc-300 px-2 py-1 text-sm"
+                        className="w-28 rounded-lg border border-zinc-300 px-2 py-1 text-sm"
                       />
                     </td>
                     <td className="px-6 py-2">
@@ -312,6 +365,32 @@ export function InventoryManager({ items }: { items: InventoryItem[] }) {
                         className="w-20 rounded-lg border border-zinc-300 px-2 py-1 text-sm"
                       />
                     </td>
+                    <td className="px-6 py-2">
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={form.purchaseCost ?? ""}
+                        onChange={(e) =>
+                          updateBulkField(item.id, { purchaseCost: e.target.value ? Number(e.target.value) : null })
+                        }
+                        className="w-24 rounded-lg border border-zinc-300 px-2 py-1 text-sm"
+                      />
+                    </td>
+                    <td className="px-6 py-2">
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={form.sellingCost ?? ""}
+                        onChange={(e) =>
+                          updateBulkField(item.id, { sellingCost: e.target.value ? Number(e.target.value) : null })
+                        }
+                        className="w-24 rounded-lg border border-zinc-300 px-2 py-1 text-sm"
+                      />
+                    </td>
+                    <td className="px-6 py-2 text-zinc-500">
+                      {liveMargin.amount}
+                      {liveMargin.pct}
+                    </td>
                     <td className="px-6 py-2 text-zinc-300">—</td>
                     <td className="px-6 py-2">
                       {rowError[item.id] ? <p className="text-xs text-red-600">{rowError[item.id]}</p> : null}
@@ -319,6 +398,8 @@ export function InventoryManager({ items }: { items: InventoryItem[] }) {
                   </tr>
                 );
               }
+
+              const itemMargin = margin(item.purchase_cost, item.selling_cost);
 
               return (
                 <tr key={item.id}>
@@ -333,6 +414,12 @@ export function InventoryManager({ items }: { items: InventoryItem[] }) {
                   </td>
                   <td className="px-6 py-3 text-zinc-500">
                     {item.reorder_level} {item.unit}
+                  </td>
+                  <td className="px-6 py-3 text-zinc-500">{formatMoney(item.purchase_cost)}</td>
+                  <td className="px-6 py-3 text-zinc-500">{formatMoney(item.selling_cost)}</td>
+                  <td className="px-6 py-3 text-zinc-500">
+                    {itemMargin.amount}
+                    {itemMargin.pct}
                   </td>
                   <td className="px-6 py-3">
                     <div className="flex items-center gap-2">
@@ -363,7 +450,7 @@ export function InventoryManager({ items }: { items: InventoryItem[] }) {
             })}
             {visibleItems.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-6 py-8 text-center text-sm text-zinc-400">
+                <td colSpan={10} className="px-6 py-8 text-center text-sm text-zinc-400">
                   {items.length === 0 ? "No items yet." : "No items in this category."}
                 </td>
               </tr>

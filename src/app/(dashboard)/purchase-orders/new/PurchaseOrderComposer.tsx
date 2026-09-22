@@ -11,12 +11,14 @@ type Row = {
   quantity: string;
   unit: string;
   itemId: number | null;
+  unitCost: string;
 };
 
 type PredictableItem = InventoryItemLookup & {
   category: string | null;
   currentStock: number;
   reorderLevel: number;
+  purchaseCost: number | null;
 };
 
 const EXAMPLE = `Tandoori kabab - 1.5 kgs
@@ -37,22 +39,43 @@ export function PurchaseOrderComposer({
   const router = useRouter();
   const [rawText, setRawText] = useState("");
   const [rows, setRows] = useState<Row[] | null>(null);
-  const [outletId, setOutletId] = useState<string>(outlets[0] ? String(outlets[0].id) : "");
-  const [supplierId, setSupplierId] = useState<string>(suppliers[0] ? String(suppliers[0].id) : "");
-  const [orderDate, setOrderDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [outletId, setOutletId] = useState<string>(
+    outlets[0] ? String(outlets[0].id) : "",
+  );
+  const [supplierId, setSupplierId] = useState<string>(
+    suppliers[0] ? String(suppliers[0].id) : "",
+  );
+  const [orderDate, setOrderDate] = useState(() =>
+    new Date().toISOString().slice(0, 10),
+  );
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [predictNotice, setPredictNotice] = useState<string | null>(null);
   const [predictCategory, setPredictCategory] = useState<string>("");
 
-  const itemsById = useMemo(() => new Map(inventoryItems.map((i) => [i.id, i])), [inventoryItems]);
+  const itemsById = useMemo(
+    () => new Map(inventoryItems.map((i) => [i.id, i])),
+    [inventoryItems],
+  );
 
   const categories = useMemo(
     () =>
-      Array.from(new Set(inventoryItems.map((i) => i.category).filter((c): c is string => Boolean(c)))).sort(),
+      Array.from(
+        new Set(
+          inventoryItems
+            .map((i) => i.category)
+            .filter((c): c is string => Boolean(c)),
+        ),
+      ).sort(),
     [inventoryItems],
   );
+
+  function costFor(itemId: number | null): string {
+    if (itemId === null) return "";
+    const cost = itemsById.get(itemId)?.purchaseCost;
+    return cost === null || cost === undefined ? "" : String(cost);
+  }
 
   const lowStockItems = useMemo(
     () =>
@@ -74,6 +97,7 @@ export function PurchaseOrderComposer({
         quantity: line.quantity !== null ? String(line.quantity) : "",
         unit: line.unit,
         itemId: line.matchedItemId,
+        unitCost: costFor(line.matchedItemId),
       })),
     );
     setError(null);
@@ -85,7 +109,9 @@ export function PurchaseOrderComposer({
     // At-the-floor items (current stock exactly equals min stock) still
     // count as "low", but ordering a quantity of 0 isn't useful on a PO —
     // only include rows that actually need restocking.
-    const toOrder = lowStockItems.filter((item) => item.reorderLevel - item.currentStock > 0);
+    const toOrder = lowStockItems.filter(
+      (item) => item.reorderLevel - item.currentStock > 0,
+    );
     if (toOrder.length === 0) {
       setPredictNotice(
         predictCategory
@@ -100,15 +126,20 @@ export function PurchaseOrderComposer({
       toOrder.map((item, idx) => ({
         key: `predict-${idx}-${item.id}`,
         name: item.name,
-        quantity: String(Math.round((item.reorderLevel - item.currentStock) * 100) / 100),
+        quantity: String(
+          Math.round((item.reorderLevel - item.currentStock) * 100) / 100,
+        ),
         unit: item.unit,
         itemId: item.id,
+        unitCost: item.purchaseCost === null ? "" : String(item.purchaseCost),
       })),
     );
   }
 
   function updateRow(key: string, patch: Partial<Row>) {
-    setRows((prev) => (prev ? prev.map((r) => (r.key === key ? { ...r, ...patch } : r)) : prev));
+    setRows((prev) =>
+      prev ? prev.map((r) => (r.key === key ? { ...r, ...patch } : r)) : prev,
+    );
   }
 
   function removeRow(key: string) {
@@ -130,11 +161,16 @@ export function PurchaseOrderComposer({
       name: r.name.trim(),
       unit: r.unit.trim() || "pcs",
       quantity: Number(r.quantity),
+      unitCost: r.unitCost.trim() ? Number(r.unitCost) : null,
     }));
 
-    const invalid = items.find((i) => !i.name || !Number.isFinite(i.quantity) || i.quantity <= 0);
+    const invalid = items.find(
+      (i) => !i.name || !Number.isFinite(i.quantity) || i.quantity <= 0,
+    );
     if (invalid) {
-      setError(`"${invalid.name || "(blank)"}" needs a valid name and a quantity greater than 0.`);
+      setError(
+        `"${invalid.name || "(blank)"}" needs a valid name and a quantity greater than 0.`,
+      );
       return;
     }
 
@@ -203,12 +239,16 @@ export function PurchaseOrderComposer({
 
       <div className="rounded-2xl border border-zinc-200 bg-white p-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-zinc-700">Predict from low stock</h2>
-          <span className="text-xs text-zinc-400">{lowStockItems.length} item(s) at or below min stock</span>
+          <h2 className="text-sm font-semibold text-zinc-700">
+            Predict from low stock
+          </h2>
+          <span className="text-xs text-zinc-400">
+            {lowStockItems.length} item(s) at or below min stock
+          </span>
         </div>
         <p className="mt-1 text-xs text-zinc-500">
-          Fills the review table below with every item at or below its minimum stock, ordering enough
-          to bring it back up to that level.
+          Fills the review table below with every item at or below its minimum
+          stock, ordering enough to bring it back up to that level.
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <label className="flex items-center gap-2 text-sm">
@@ -234,17 +274,28 @@ export function PurchaseOrderComposer({
             Predict purchase order
           </button>
         </div>
-        {predictNotice ? <p className="mt-3 text-sm text-zinc-500">{predictNotice}</p> : null}
+        {predictNotice ? (
+          <p className="mt-3 text-sm text-zinc-500">{predictNotice}</p>
+        ) : null}
       </div>
 
       <div className="rounded-2xl border border-zinc-200 bg-white p-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-zinc-700">Or paste your item list</h2>
-          <button type="button" onClick={() => setRawText(EXAMPLE)} className="text-xs text-blue-600 hover:underline">
+          <h2 className="text-sm font-semibold text-zinc-700">
+            Or paste your item list
+          </h2>
+          <button
+            type="button"
+            onClick={() => setRawText(EXAMPLE)}
+            className="text-xs text-blue-600 hover:underline"
+          >
             Fill example
           </button>
         </div>
-        <p className="mt-1 text-xs text-zinc-500">One item per line: “Item name - quantity unit”, e.g. “Tandoori kabab - 1.5 kgs”.</p>
+        <p className="mt-1 text-xs text-zinc-500">
+          One item per line: “Item name - quantity unit”, e.g. “Tandoori kabab -
+          1.5 kgs”.
+        </p>
         <textarea
           value={rawText}
           onChange={(e) => setRawText(e.target.value)}
@@ -265,9 +316,12 @@ export function PurchaseOrderComposer({
         <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white">
           <div className="flex items-center justify-between border-b border-zinc-100 px-6 py-4">
             <div>
-              <h2 className="text-sm font-semibold text-zinc-700">Review before creating the PO</h2>
+              <h2 className="text-sm font-semibold text-zinc-700">
+                Review before creating the PO
+              </h2>
               <p className="mt-1 text-xs text-zinc-500">
-                Items not found in inventory are set to “create new” — pick an existing item instead if it&apos;s a match.
+                Items not found in inventory are set to “create new” — pick an
+                existing item instead if it&apos;s a match.
               </p>
             </div>
             <button
@@ -275,7 +329,14 @@ export function PurchaseOrderComposer({
               onClick={() =>
                 setRows((prev) => [
                   ...(prev ?? []),
-                  { key: `manual-${crypto.randomUUID()}`, name: "", quantity: "", unit: "", itemId: null },
+                  {
+                    key: `manual-${crypto.randomUUID()}`,
+                    name: "",
+                    quantity: "",
+                    unit: "",
+                    itemId: null,
+                    unitCost: "",
+                  },
                 ])
               }
               className="shrink-0 text-xs text-blue-600 hover:underline"
@@ -290,67 +351,105 @@ export function PurchaseOrderComposer({
                 <th className="px-6 py-3 font-medium">Match</th>
                 <th className="px-6 py-3 font-medium">Qty</th>
                 <th className="px-6 py-3 font-medium">Unit</th>
+                <th className="px-6 py-3 font-medium">Est. cost/unit</th>
+                <th className="px-6 py-3 font-medium">Est. total</th>
                 <th className="px-6 py-3 font-medium" />
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
-              {rows.map((row) => (
-                <tr key={row.key}>
-                  <td className="px-6 py-2">
-                    <input
-                      value={row.name}
-                      onChange={(e) => updateRow(row.key, { name: e.target.value })}
-                      className="w-40 rounded-lg border border-zinc-300 px-2 py-1 text-sm"
-                    />
-                  </td>
-                  <td className="px-6 py-2">
-                    <select
-                      value={row.itemId ?? ""}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        if (!value) {
-                          updateRow(row.key, { itemId: null });
-                          return;
+              {rows.map((row) => {
+                const lineTotal =
+                  (Number(row.quantity) || 0) * (Number(row.unitCost) || 0);
+                return (
+                  <tr key={row.key}>
+                    <td className="px-6 py-2">
+                      <input
+                        value={row.name}
+                        onChange={(e) =>
+                          updateRow(row.key, { name: e.target.value })
                         }
-                        const matched = itemsById.get(Number(value));
-                        updateRow(row.key, { itemId: Number(value), unit: matched?.unit ?? row.unit });
-                      }}
-                      className={`rounded-lg border px-2 py-1 text-sm ${
-                        row.itemId ? "border-zinc-300" : "border-amber-400 bg-amber-50"
-                      }`}
-                    >
-                      <option value="">+ Create new item</option>
-                      {inventoryItems.map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.name}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-6 py-2">
-                    <input
-                      value={row.quantity}
-                      onChange={(e) => updateRow(row.key, { quantity: e.target.value })}
-                      className="w-20 rounded-lg border border-zinc-300 px-2 py-1 text-sm"
-                    />
-                  </td>
-                  <td className="px-6 py-2">
-                    <input
-                      value={row.unit}
-                      onChange={(e) => updateRow(row.key, { unit: e.target.value })}
-                      className="w-20 rounded-lg border border-zinc-300 px-2 py-1 text-sm"
-                    />
-                  </td>
-                  <td className="px-6 py-2">
-                    <button type="button" onClick={() => removeRow(row.key)} className="text-xs text-zinc-400 hover:text-red-600">
-                      Remove
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                        className="w-40 rounded-lg border border-zinc-300 px-2 py-1 text-sm"
+                      />
+                    </td>
+                    <td className="px-6 py-2">
+                      <select
+                        value={row.itemId ?? ""}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (!value) {
+                            updateRow(row.key, { itemId: null });
+                            return;
+                          }
+                          const matched = itemsById.get(Number(value));
+                          updateRow(row.key, {
+                            itemId: Number(value),
+                            unit: matched?.unit ?? row.unit,
+                            unitCost: costFor(Number(value)),
+                          });
+                        }}
+                        className={`rounded-lg border px-2 py-1 text-sm ${
+                          row.itemId
+                            ? "border-zinc-300"
+                            : "border-amber-400 bg-amber-50"
+                        }`}
+                      >
+                        <option value="">+ Create new item</option>
+                        {inventoryItems.map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {item.name}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-6 py-2">
+                      <input
+                        value={row.quantity}
+                        onChange={(e) =>
+                          updateRow(row.key, { quantity: e.target.value })
+                        }
+                        className="w-20 rounded-lg border border-zinc-300 px-2 py-1 text-sm"
+                      />
+                    </td>
+                    <td className="px-6 py-2">
+                      <input
+                        value={row.unit}
+                        onChange={(e) =>
+                          updateRow(row.key, { unit: e.target.value })
+                        }
+                        className="w-20 rounded-lg border border-zinc-300 px-2 py-1 text-sm"
+                      />
+                    </td>
+                    <td className="px-6 py-2">
+                      <input
+                        value={row.unitCost}
+                        onChange={(e) =>
+                          updateRow(row.key, { unitCost: e.target.value })
+                        }
+                        placeholder="₹"
+                        className="w-20 rounded-lg border border-zinc-300 px-2 py-1 text-sm"
+                      />
+                    </td>
+                    <td className="px-6 py-2 text-zinc-500">
+                      {lineTotal > 0 ? `₹${lineTotal.toFixed(2)}` : "—"}
+                    </td>
+                    <td className="px-6 py-2">
+                      <button
+                        type="button"
+                        onClick={() => removeRow(row.key)}
+                        className="text-xs text-zinc-400 hover:text-red-600"
+                      >
+                        Remove
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-sm text-zinc-400">
+                  <td
+                    colSpan={7}
+                    className="px-6 py-8 text-center text-sm text-zinc-400"
+                  >
                     No items parsed yet.
                   </td>
                 </tr>
@@ -358,9 +457,25 @@ export function PurchaseOrderComposer({
             </tbody>
           </table>
 
+          <div className="flex items-center justify-between border-t border-zinc-100 px-6 py-3 text-sm">
+            <span className="text-zinc-500">Estimated PO total</span>
+            <span className="font-semibold text-zinc-900">
+              ₹
+              {rows
+                .reduce(
+                  (sum, r) =>
+                    sum + (Number(r.quantity) || 0) * (Number(r.unitCost) || 0),
+                  0,
+                )
+                .toFixed(2)}
+            </span>
+          </div>
+
           <div className="flex flex-col gap-3 border-t border-zinc-100 px-6 py-4">
             <label className="flex flex-col gap-1 text-sm">
-              <span className="text-xs font-medium text-zinc-500">Notes (optional)</span>
+              <span className="text-xs font-medium text-zinc-500">
+                Notes (optional)
+              </span>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
@@ -369,7 +484,11 @@ export function PurchaseOrderComposer({
               />
             </label>
 
-            {error ? <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
+            {error ? (
+              <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+                {error}
+              </p>
+            ) : null}
 
             <button
               type="button"
@@ -377,7 +496,9 @@ export function PurchaseOrderComposer({
               disabled={submitting}
               className="self-start rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50"
             >
-              {submitting ? "Creating…" : "Create purchase order & generate PDF"}
+              {submitting
+                ? "Creating…"
+                : "Create purchase order & generate PDF"}
             </button>
           </div>
         </div>
