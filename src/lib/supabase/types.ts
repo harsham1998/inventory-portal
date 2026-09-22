@@ -43,6 +43,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      expenses: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          expense_date: string
+          id: number
+          outlet_id: number | null
+        }
+        Insert: {
+          amount: number
+          category: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          expense_date?: string
+          id?: never
+          outlet_id?: number | null
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          expense_date?: string
+          id?: never
+          outlet_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_outlet_id_fkey"
+            columns: ["outlet_id"]
+            isOneToOne: false
+            referencedRelation: "outlets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_items: {
         Row: {
           category: string | null
@@ -76,6 +124,66 @@ export type Database = {
           reorder_level?: number
           selling_cost?: number | null
           unit?: string
+        }
+        Relationships: []
+      }
+      menu_item_ingredients: {
+        Row: {
+          id: number
+          inventory_item_id: number
+          menu_item_id: number
+          quantity: number
+        }
+        Insert: {
+          id?: never
+          inventory_item_id: number
+          menu_item_id: number
+          quantity: number
+        }
+        Update: {
+          id?: never
+          inventory_item_id?: number
+          menu_item_id?: number
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "menu_item_ingredients_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "menu_item_ingredients_menu_item_id_fkey"
+            columns: ["menu_item_id"]
+            isOneToOne: false
+            referencedRelation: "menu_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      menu_items: {
+        Row: {
+          category: string | null
+          created_at: string
+          id: number
+          name: string
+          selling_price: number | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          id?: never
+          name: string
+          selling_price?: number | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          id?: never
+          name?: string
+          selling_price?: number | null
         }
         Relationships: []
       }
@@ -208,6 +316,99 @@ export type Database = {
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_record_items: {
+        Row: {
+          amount: number
+          id: number
+          item_name: string
+          menu_item_id: number
+          quantity_sold: number
+          sale_id: number
+          unit_price: number
+        }
+        Insert: {
+          amount?: number
+          id?: never
+          item_name: string
+          menu_item_id: number
+          quantity_sold: number
+          sale_id: number
+          unit_price?: number
+        }
+        Update: {
+          amount?: number
+          id?: never
+          item_name?: string
+          menu_item_id?: number
+          quantity_sold?: number
+          sale_id?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_record_items_menu_item_id_fkey"
+            columns: ["menu_item_id"]
+            isOneToOne: false
+            referencedRelation: "menu_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_record_items_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_records: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          file_path: string | null
+          id: number
+          outlet_id: number
+          sale_date: string
+          source: string
+          total_revenue: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          file_path?: string | null
+          id?: never
+          outlet_id: number
+          sale_date?: string
+          source?: string
+          total_revenue?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          file_path?: string | null
+          id?: never
+          outlet_id?: number
+          sale_date?: string
+          source?: string
+          total_revenue?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_records_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_records_outlet_id_fkey"
+            columns: ["outlet_id"]
+            isOneToOne: false
+            referencedRelation: "outlets"
             referencedColumns: ["id"]
           },
         ]
@@ -480,6 +681,19 @@ export type Database = {
         Returns: {
           id: number
           po_number: string
+        }[]
+      }
+      create_sales_record: {
+        // p_file_path and p_source are nullable plpgsql args.
+        Args: {
+          p_file_path: string | null
+          p_items: Json
+          p_outlet_id: number
+          p_sale_date: string
+          p_source: string | null
+        }
+        Returns: {
+          id: number
         }[]
       }
       create_supplier_invoice: {

@@ -7,6 +7,9 @@ import { signOut } from "./actions";
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard" },
   { href: "/inventory", label: "Inventory" },
+  { href: "/menu", label: "Menu" },
+  { href: "/sales", label: "Sales" },
+  { href: "/accounting", label: "Accounting" },
   { href: "/purchase-orders", label: "Purchase Orders" },
   { href: "/invoices", label: "Supplier Invoices" },
   { href: "/suppliers", label: "Suppliers" },
